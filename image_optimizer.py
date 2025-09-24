@@ -2,7 +2,7 @@ import sys
 import os
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton, QProgressBar, QLabel,
                              QSlider, QHBoxLayout, QGroupBox, QLineEdit, QComboBox, QTextEdit,
-                             QSpinBox, QCheckBox, QSizePolicy)
+                             QSpinBox, QCheckBox, QSizePolicy, QFileDialog)
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
 from PIL import Image
 
@@ -175,6 +175,18 @@ class App(QWidget):
         self.drop_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         main_layout.addWidget(self.drop_label)
 
+        # Uudet painikkeet
+        button_layout = QHBoxLayout()
+        self.add_images_button = QPushButton('Lisää kuvia...')
+        self.clear_list_button = QPushButton('Tyhjennä lista')
+        
+        self.add_images_button.clicked.connect(self.add_images_dialog)
+        self.clear_list_button.clicked.connect(self.clear_image_list)
+        
+        button_layout.addWidget(self.add_images_button)
+        button_layout.addWidget(self.clear_list_button)
+        main_layout.addLayout(button_layout)
+
         # Asetusryhmä
         settings_group = QGroupBox('Optimointiasetukset')
         settings_layout = QVBoxLayout()
@@ -262,13 +274,37 @@ class App(QWidget):
 
     def dropEvent(self, event):
         urls = event.mimeData().urls()
-        self.image_paths = [url.toLocalFile() for url in urls]
-        self.drop_label.setText(f"Lisätty {len(self.image_paths)} kuvaa")
+        self.image_paths.extend([url.toLocalFile() for url in urls])
+        self.update_drop_label()
         self.drop_label.setStyleSheet("border: 2px dashed #555; padding: 50px; font-size: 16px; background-color: #3c3c3c;")
-        
+
+    def add_images_dialog(self):
+        # Avaa tiedostonvalintaikkuna, josta voi valita useita kuvia
+        file_dialog = QFileDialog()
+        file_paths, _ = file_dialog.getOpenFileNames(
+            self,
+            "Lisää kuvia",
+            os.path.expanduser("~"),
+            "Kuvatiedostot (*.jpg *.jpeg *.png *.bmp)"
+        )
+        if file_paths:
+            self.image_paths.extend(file_paths)
+            self.update_drop_label()
+
+    def clear_image_list(self):
+        self.image_paths = []
+        self.update_drop_label()
+        self.log_box.append("Kuvalista tyhjennetty.")
+
+    def update_drop_label(self):
+        if self.image_paths:
+            self.drop_label.setText(f"Lisätty {len(self.image_paths)} kuvaa")
+        else:
+            self.drop_label.setText('Pudota kuvat tähän')
+    
     def start_processing(self):
         if not self.image_paths:
-            self.log_box.append("Lisää kuvia pudottamalla ne ensin tähän.")
+            self.log_box.append("Lisää kuvia pudottamalla ne tai käyttämällä 'Lisää kuvia...'-painiketta.")
             return
 
         self.log_box.clear()
